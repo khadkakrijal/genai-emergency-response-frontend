@@ -99,7 +99,7 @@ export default function Home() {
     setResult(null);
 
     try {
-      const res = await fetch(`${API_URL}/incidents`, {
+      const res = await fetch(`${API_URL}/analyse-incidents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
