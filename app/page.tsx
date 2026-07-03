@@ -4,13 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import "leaflet/dist/leaflet.css";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://genai-emergency-response-api.onrender.com";
+
 const MapContainer = dynamic(
   () => import("react-leaflet").then((m) => m.MapContainer),
-  { ssr: false }
+  { ssr: false },
 );
 const TileLayer = dynamic(
   () => import("react-leaflet").then((m) => m.TileLayer),
-  { ssr: false }
+  { ssr: false },
 );
 const Marker = dynamic(() => import("react-leaflet").then((m) => m.Marker), {
   ssr: false,
@@ -81,7 +85,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const fetchIncidents = async () => {
-    const res = await fetch("http://127.0.0.1:8000/incidents");
+    const res = await fetch(`${API_URL}/incidents`);
     const data = await res.json();
     setIncidents(data);
   };
@@ -95,7 +99,7 @@ export default function Home() {
     setResult(null);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/analyse-incident", {
+      const res = await fetch(`${API_URL}/incidents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -132,13 +136,13 @@ export default function Home() {
   const analytics = useMemo(() => {
     const total = incidents.length;
     const highRisk = incidents.filter(
-      (i) => i.risk_level?.toLowerCase() === "high"
+      (i) => i.risk_level?.toLowerCase() === "high",
     ).length;
     const mediumRisk = incidents.filter(
-      (i) => i.risk_level?.toLowerCase() === "medium"
+      (i) => i.risk_level?.toLowerCase() === "medium",
     ).length;
     const lowRisk = incidents.filter(
-      (i) => i.risk_level?.toLowerCase() === "low"
+      (i) => i.risk_level?.toLowerCase() === "low",
     ).length;
 
     const typeCounts: Record<string, number> = {};
@@ -208,12 +212,36 @@ export default function Home() {
             />
 
             <div className="grid md:grid-cols-2 gap-4">
-              <Input value={location} setValue={setLocation} placeholder="Location: Nightcliff" />
-              <Input value={incidentTime} setValue={setIncidentTime} placeholder="Time: Night / 10:30 PM" />
-              <Input value={peopleInvolved} setValue={setPeopleInvolved} placeholder="People involved" />
-              <Input value={weaponInvolved} setValue={setWeaponInvolved} placeholder="Weapon involved" />
-              <Input value={injuryReported} setValue={setInjuryReported} placeholder="Injury reported" />
-              <Input value={locationType} setValue={setLocationType} placeholder="Location type" />
+              <Input
+                value={location}
+                setValue={setLocation}
+                placeholder="Location: Nightcliff"
+              />
+              <Input
+                value={incidentTime}
+                setValue={setIncidentTime}
+                placeholder="Time: Night / 10:30 PM"
+              />
+              <Input
+                value={peopleInvolved}
+                setValue={setPeopleInvolved}
+                placeholder="People involved"
+              />
+              <Input
+                value={weaponInvolved}
+                setValue={setWeaponInvolved}
+                placeholder="Weapon involved"
+              />
+              <Input
+                value={injuryReported}
+                setValue={setInjuryReported}
+                placeholder="Injury reported"
+              />
+              <Input
+                value={locationType}
+                setValue={setLocationType}
+                placeholder="Location type"
+              />
             </div>
 
             <button
@@ -228,7 +256,11 @@ export default function Home() {
           <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
             <h2 className="text-xl font-bold mb-4">Incident Map</h2>
             <div className="h-[390px] rounded-xl overflow-hidden">
-              <MapContainer center={mapLocation} zoom={13} className="h-full w-full">
+              <MapContainer
+                center={mapLocation}
+                zoom={13}
+                className="h-full w-full"
+              >
                 <TileLayer
                   attribution="&copy; OpenStreetMap contributors"
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -278,7 +310,10 @@ export default function Home() {
             <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
               <h2 className="text-xl font-bold mb-4">Data Fusion Sources</h2>
               <div className="grid md:grid-cols-3 gap-3 text-sm">
-                <FusionItem label="Incident Description" active={!!result.summary} />
+                <FusionItem
+                  label="Incident Description"
+                  active={!!result.summary}
+                />
                 <FusionItem label="Location" active />
                 <FusionItem label="Incident Time" active />
                 <FusionItem label="People Involved" active />
@@ -350,7 +385,9 @@ export default function Home() {
             </section>
 
             <section className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-              <h2 className="text-xl font-bold mb-4">Similar Historical Incidents</h2>
+              <h2 className="text-xl font-bold mb-4">
+                Similar Historical Incidents
+              </h2>
               <div className="space-y-4">
                 {result.similar_incidents?.map((incident, index) => (
                   <div key={index} className="bg-slate-800 p-4 rounded-lg">
@@ -362,7 +399,8 @@ export default function Home() {
                         </p>
                       </div>
                       <p className="text-sm text-blue-300">
-                        Similarity: {Math.round(incident.similarity_score * 100)}%
+                        Similarity:{" "}
+                        {Math.round(incident.similarity_score * 100)}%
                       </p>
                     </div>
                     <p className="text-sm text-slate-300 mt-3">
@@ -378,15 +416,32 @@ export default function Home() {
         <section className="grid lg:grid-cols-2 gap-6">
           <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
             <h2 className="text-xl font-bold mb-4">Risk Breakdown</h2>
-            <MiniBar label="High" value={analytics.highRisk} total={analytics.total} />
-            <MiniBar label="Medium" value={analytics.mediumRisk} total={analytics.total} />
-            <MiniBar label="Low" value={analytics.lowRisk} total={analytics.total} />
+            <MiniBar
+              label="High"
+              value={analytics.highRisk}
+              total={analytics.total}
+            />
+            <MiniBar
+              label="Medium"
+              value={analytics.mediumRisk}
+              total={analytics.total}
+            />
+            <MiniBar
+              label="Low"
+              value={analytics.lowRisk}
+              total={analytics.total}
+            />
           </div>
 
           <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
             <h2 className="text-xl font-bold mb-4">Incident Type Breakdown</h2>
             {Object.entries(analytics.typeCounts).map(([type, count]) => (
-              <MiniBar key={type} label={type} value={count} total={analytics.total} />
+              <MiniBar
+                key={type}
+                label={type}
+                value={count}
+                total={analytics.total}
+              />
             ))}
           </div>
         </section>
@@ -398,10 +453,12 @@ export default function Home() {
               <div key={incident.id} className="bg-slate-800 p-4 rounded-lg">
                 <p className="font-semibold">{incident.description}</p>
                 <p className="text-sm text-slate-400">
-                  {incident.location || "No location"} • {incident.incident_type} •{" "}
-                  {incident.risk_level}
+                  {incident.location || "No location"} •{" "}
+                  {incident.incident_type} • {incident.risk_level}
                 </p>
-                <p className="text-sm mt-2 text-slate-300">{incident.summary}</p>
+                <p className="text-sm mt-2 text-slate-300">
+                  {incident.summary}
+                </p>
               </div>
             ))}
           </div>
