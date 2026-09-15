@@ -74,3 +74,40 @@ export async function getIncident(id: string): Promise<Incident> {
 
   return response.json();
 }
+
+export async function deleteIncident(
+  id: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_URL}/incidents/${id}`,
+    {
+      method: "DELETE",
+      cache: "no-store",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Unable to delete incident: ${response.status}`
+    );
+  }
+}
+
+
+export async function reanalyseIncident(
+  id: string,
+  incident: IncidentInput
+): Promise<AnalysisResult> {
+  const response = await fetchWithRetry(
+    `${API_URL}/incidents/${id}/reanalyse`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(incident),
+    }
+  );
+
+  return response.json();
+}
