@@ -12,10 +12,13 @@ type IncidentMapProps = {
   location: string;
 };
 
-type GeocodeResult = {
-  lat: string;
-  lon: string;
-  display_name: string;
+type GeocodeResponse = {
+  found: boolean;
+  lat?: string;
+  lon?: string;
+  display_name?: string;
+  original_query?: string;
+  matched_query?: string;
 };
 
 export default function IncidentMap({
@@ -27,13 +30,18 @@ export default function IncidentMap({
   } | null>(null);
 
   const [displayName, setDisplayName] = useState("");
+  const [matchedQuery, setMatchedQuery] = useState("");
+
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!location.trim()) {
+    const trimmedLocation = location.trim();
+
+    if (!trimmedLocation) {
       setPosition(null);
       setDisplayName("");
+      setMatchedQuery("");
       setNotFound(false);
       setSearching(false);
       return;
@@ -47,28 +55,39 @@ export default function IncidentMap({
 
       try {
         const response = await fetch(
-          `/api/geocode?q=${encodeURIComponent(location.trim())}`,
+          `/api/geocode?q=${encodeURIComponent(trimmedLocation)}`,
           {
             signal: controller.signal,
           }
         );
 
         if (!response.ok) {
-          throw new Error("Location search failed");
+          throw new Error(
+            `Location search failed: ${response.status}`
+          );
         }
 
-        const data: GeocodeResult[] =
+        const data: GeocodeResponse =
           await response.json();
 
-        if (!Array.isArray(data) || data.length === 0) {
+        /*
+         * The API tries several versions of the
+         * location before returning found: false.
+         */
+        if (
+          !data.found ||
+          !data.lat ||
+          !data.lon
+        ) {
           setPosition(null);
           setDisplayName("");
+          setMatchedQuery("");
           setNotFound(true);
           return;
         }
 
-        const latitude = Number(data[0].lat);
-        const longitude = Number(data[0].lon);
+        const latitude = Number(data.lat);
+        const longitude = Number(data.lon);
 
         if (
           !Number.isFinite(latitude) ||
@@ -76,6 +95,7 @@ export default function IncidentMap({
         ) {
           setPosition(null);
           setDisplayName("");
+          setMatchedQuery("");
           setNotFound(true);
           return;
         }
@@ -86,11 +106,21 @@ export default function IncidentMap({
         });
 
         setDisplayName(
-          data[0].display_name || location
+          data.display_name ||
+            trimmedLocation
+        );
+
+        setMatchedQuery(
+          data.matched_query || ""
         );
 
         setNotFound(false);
       } catch (error) {
+        /*
+         * AbortError is expected when the user
+         * changes the location while a previous
+         * request is still running.
+         */
         if (
           error instanceof Error &&
           error.name === "AbortError"
@@ -98,13 +128,19 @@ export default function IncidentMap({
           return;
         }
 
-        console.error("Geocoding error:", error);
+        console.error(
+          "Geocoding error:",
+          error
+        );
 
         setPosition(null);
         setDisplayName("");
+        setMatchedQuery("");
         setNotFound(true);
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
       }
     }, 800);
 
@@ -115,8 +151,8 @@ export default function IncidentMap({
   }, [location]);
 
   /*
-   * Create a small bounding box around the location
-   * for the OpenStreetMap embedded map.
+   * Create a small bounding box around
+   * the resolved coordinates.
    */
   const mapUrl = position
     ? `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
@@ -126,6 +162,10 @@ export default function IncidentMap({
       )}`
     : "";
 
+  /*
+   * Full OpenStreetMap URL for the
+   * "Open Map" button.
+   */
   const openMapUrl = position
     ? `https://www.openstreetmap.org/?mlat=${position.lat}&mlon=${position.lon}#map=16/${position.lat}/${position.lon}`
     : "";
@@ -158,9 +198,10 @@ export default function IncidentMap({
               href={openMapUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-blue-500/40 hover:text-blue-400"
+              className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-400 transition hover:border-blue-500/40 hover:text-blue-400"
             >
               Open Map
+
               <ExternalLink className="h-3.5 w-3.5" />
             </a>
           )}
@@ -171,46 +212,77 @@ export default function IncidentMap({
         {searching && (
           <div className="mt-4 flex items-center gap-2 text-sm text-blue-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Locating incident...
+
+            <span>
+              Locating incident...
+            </span>
           </div>
         )}
 
         {/* LOCATION FOUND */}
 
         {!searching && position && (
-          <div className="mt-4 flex items-start gap-2">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+          <div className="mt-4 rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3">
+            <div className="flex items-start gap-3">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
 
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
-                Location Found
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+                  Location Found
+                </p>
 
-              <p className="mt-1 text-sm leading-5 text-slate-400">
-                {displayName}
-              </p>
+                <p className="mt-1 text-sm leading-5 text-slate-300">
+                  {displayName}
+                </p>
+
+                {matchedQuery &&
+                  matchedQuery.toLowerCase() !==
+                    location.trim().toLowerCase() && (
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Interpreted from:{" "}
+                      <span className="text-slate-400">
+                        {location}
+                      </span>
+                    </p>
+                  )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* NOT FOUND */}
+        {/* LOCATION NOT FOUND */}
 
         {!searching && notFound && (
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-            <p className="text-sm text-amber-300">
-              Location could not be found. Try entering a more
-              specific place name or street address.
-            </p>
+            <div className="flex items-start gap-3">
+              <Search className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+
+              <div>
+                <p className="text-sm font-medium text-amber-300">
+                  Location could not be identified
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-amber-200/70">
+                  The system tried multiple versions of the
+                  location but could not confidently identify
+                  it. Try adding a suburb, city, landmark or
+                  street name.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* EMPTY */}
+        {/* EMPTY STATE */}
 
-        {!location && (
+        {!location.trim() && (
           <div className="mt-4 flex items-center gap-2 text-sm text-slate-500">
             <Search className="h-4 w-4" />
-            Enter an incident location above to locate it
-            automatically.
+
+            <span>
+              Enter an incident location above to locate it
+              automatically.
+            </span>
           </div>
         )}
       </div>
@@ -221,11 +293,15 @@ export default function IncidentMap({
         <div className="relative h-[400px] w-full bg-slate-950">
           <iframe
             key={`${position.lat}-${position.lon}`}
-            title={`Emergency location: ${displayName || location}`}
+            title={`Emergency location: ${
+              displayName || location
+            }`}
             src={mapUrl}
             className="h-full w-full border-0"
             loading="lazy"
           />
+
+          {/* INCIDENT INDICATOR */}
 
           <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg border border-slate-700/70 bg-slate-950/90 px-3 py-2 shadow-xl backdrop-blur">
             <div className="flex items-center gap-2">
@@ -238,10 +314,14 @@ export default function IncidentMap({
           </div>
         </div>
       ) : (
+        /* MAP PLACEHOLDER */
+
         <div className="flex h-[300px] items-center justify-center bg-slate-950/40">
           <div className="px-6 text-center">
             {searching ? (
               <Loader2 className="mx-auto h-9 w-9 animate-spin text-blue-500" />
+            ) : notFound ? (
+              <Search className="mx-auto h-9 w-9 text-amber-500/50" />
             ) : (
               <MapPin className="mx-auto h-9 w-9 text-slate-700" />
             )}
@@ -249,12 +329,15 @@ export default function IncidentMap({
             <p className="mt-3 text-sm font-medium text-slate-500">
               {searching
                 ? "Searching for incident location..."
-                : "Waiting for incident location"}
+                : notFound
+                  ? "Location unavailable"
+                  : "Waiting for incident location"}
             </p>
 
             <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-600">
-              Enter a place name, landmark or street address in
-              the incident form.
+              {notFound
+                ? "Add more location information and the system will automatically try again."
+                : "Enter a place name, landmark or street address in the incident form."}
             </p>
           </div>
         </div>

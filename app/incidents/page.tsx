@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
-
+import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   BrainCircuit,
   CheckCircle2,
   Clock3,
@@ -26,19 +27,9 @@ import type { AnalysisResult, Incident, IncidentInput } from "@/lib/types";
 import IncidentMap from "@/components/incidents/incident-map";
 
 export default function IncidentsPage() {
-  // ---------------------------------------------------------------------------
-  // FORM STATE
-  // ---------------------------------------------------------------------------
-
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
 
-  /*
-   * Separate map location.
-   *
-   * This allows us to clear the form after analysis while
-   * keeping the analysed incident visible on the map.
-   */
   const [mappedLocation, setMappedLocation] = useState("");
 
   const [incidentTime, setIncidentTime] = useState("");
@@ -47,15 +38,7 @@ export default function IncidentsPage() {
   const [injuryReported, setInjuryReported] = useState("");
   const [locationType, setLocationType] = useState("");
 
-  // ---------------------------------------------------------------------------
-  // ANALYSIS RESULT
-  // ---------------------------------------------------------------------------
-
   const [result, setResult] = useState<AnalysisResult | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // INCIDENT HISTORY
-  // ---------------------------------------------------------------------------
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,10 +60,6 @@ export default function IncidentsPage() {
   useEffect(() => {
     void loadIncidents();
   }, []);
-
-  // ---------------------------------------------------------------------------
-  // ANALYSE INCIDENT
-  // ---------------------------------------------------------------------------
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -615,10 +594,6 @@ export default function IncidentsPage() {
         </section>
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* INCIDENT HISTORY                                                   */}
-      {/* ------------------------------------------------------------------ */}
-
       <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
         <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
           <div className="flex items-center gap-3">
@@ -764,9 +739,11 @@ function ResultPanel({
 
 function HistoryRow({ incident }: { incident: Incident }) {
   return (
-    <div className="px-6 py-5 transition hover:bg-slate-800/20">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-        <div className="min-w-0">
+    <div className="group px-6 py-5 transition hover:bg-slate-800/20">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* INCIDENT DETAILS */}
+
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-slate-200">
               {incident.incident_type || "Unclassified Incident"}
@@ -781,9 +758,13 @@ function HistoryRow({ incident }: { incident: Incident }) {
             </span>
           </div>
 
+          {/* DESCRIPTION */}
+
           <p className="mt-2 line-clamp-2 max-w-4xl text-sm leading-6 text-slate-500">
             {incident.description}
           </p>
+
+          {/* LOCATION + DATE */}
 
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
             <span className="flex items-center gap-1.5">
@@ -799,11 +780,22 @@ function HistoryRow({ incident }: { incident: Incident }) {
             </span>
           </div>
         </div>
+
+        {/* ACTIONS */}
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href={`/incidents/${incident.id}`}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-500/20 bg-blue-500/10 px-3.5 py-2 text-xs font-semibold text-blue-400 transition hover:border-blue-500/40 hover:bg-blue-500/15 hover:text-blue-300"
+          >
+            View Details
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
-
 /* -------------------------------------------------------------------------- */
 /* STYLES                                                                     */
 /* -------------------------------------------------------------------------- */
